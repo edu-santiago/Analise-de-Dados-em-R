@@ -1,0 +1,286 @@
+---
+title: "Trabalho Final"
+author: "Eduardo Santiago"
+date: "17/12/2019"
+output: html_document
+---
+
+# Análise dos Suicídios no Brasil
+
+
+## Objetivo
+
+Essa análise tem como principal objetivo encontrar os fatores de risco para suicídio no Brasil e prever a evolução desses dados para os próximos anos.
+
+## A Base de Dados
+
+Nessa análise será usada a base de dados de mortalidade da **OMS** Mortality, ICD-10. Ela é organizada pelo código dos países como variáveis categóricas e está em formato **long**. Com os dados dos países, outras variáveis categóricas são o tipo de morte e o gênero. Com isso, o número de mortes é separado por faixas-etárias padronizadas pela **OMS**.
+
+## Fonte dos Dados
+
+Os dados foram obtidos do site internacional da OMS [https://www.who.int/healthinfo/statistics/mortality_rawdata/en/](https://www.who.int/healthinfo/statistics/mortality_rawdata/en/)
+Onde eles podem ser baixado em formato "puro", como dois arquivos com mais de 10Mb para serem tratados. Eles vem como arquivos CSV que, após terem as causas da morte e países desejados selecionados, serão unidos e transformados em um único arquivo. Agilizando o tratamento dos dados.
+
+## Dicionário de Dados
+
+O dicionário de dados também está no link [https://www.who.int/healthinfo/statistics/mortality_rawdata/en/](https://www.who.int/healthinfo/statistics/mortality_rawdata/en/)
+Apesar do dicionário conter as informações sobre todas as bases de dados, nessa sessão só serão exibidas as tabelas e linhas utilizadas.
+
+
+## Perguntas em Potencial 
+
+ - Existe uma diferença significativa entre as taxas de suicídio entre os gêneros?
+ - Quais são as categorias com maior chance de cometerem suicídios?
+ - Utilizando um modelo de regressão linear, as categorias em mais risco estão com o número de suicídios aumentando ou diminuindo?
+ 
+# Análise Exploratória
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+library("tidyverse")
+library("ggplot2")
+library("reshape2")
+
+datafinal <- get(load(file="BDDSUICS.RData"))
+
+
+
+dataTotal <- datafinal$Total %>% aggregate(by = list(datafinal$Year, datafinal$Sex), FUN = sum) %>% setNames(c("Year","Sex","Total"))
+
+dataTotal$Sex <- as.factor(dataTotal$Sex)
+
+dataTipoTotal <- datafinal$Total %>% aggregate(by = list(datafinal$Year, datafinal$Sex, datafinal$Cause), FUN = sum) %>% setNames(c("Year","Sex","Cause","Total"))
+
+dataTipoTotal$Cause <- as.factor(dataTipoTotal$Cause)
+
+dataIdade <- datafinal %>% group_by(Year) %>% summarise(Deaths7 = sum(Deaths7),Deaths8 = sum(Deaths8),Deaths9 = sum(Deaths9),Deaths10 = sum(Deaths10),Deaths26 = sum(Deaths26),Deaths2534 = sum(Deaths2534),Deaths3544 = sum(Deaths3544),Deaths4559 = sum(Deaths4559),Deaths6069 = sum(Deaths6069),Deaths70up = sum(Deaths70up))
+```
+
+# Análise Exploratória dos Suicídios no Brasil
+
+  Este relatório irá abordar insights sobre o número de suicídios no Brasil, os métodos mais utilizados e que categorias estão em mais risco.
+
+
+## Perguntas:
+1 - Quem cometeu mais suicídios? Existe uma diferença significativa?  
+2 - Existe uma preferência por métodos de suicídio por gênero?  
+3 - Qual a faixa etária mais suicida?  
+
+
+
+## 1 - Quem cometeu mais suicídios? Existe uma diferença significativa?
+
+```{r}
+dataTotal %>% ggplot(aes(x = Year,y = Total, col = Sex)) + geom_line(size = 3) + labs(title = "Suicídios dividos por gênero", x = "Tempo", y = "Suicídios", col = "Gênero") + scale_color_manual(values=c("blue", "red")) + theme(legend.position = "none")
+
+dataTotal %>% ggplot(aes(x = Sex, y = Total, col = Sex)) + geom_boxplot()+ labs(title = "Suicídios dividos por gênero", x = "Gênero", y = "Suicídios") + scale_color_manual(values=c("blue", "red")) + theme(legend.position = "none")
+```
+
+  É possível perceber uma diferença significativa no número de suicídios entre homens(1) e mulheres(2) 
+
+```{r}
+
+diffs <- dataTotal %>% group_by(Year) %>% summarise(Diff = -diff(Total))
+
+
+ggplot(diffs, aes(x = Year, y = Diff)) + geom_line(size = 1, aes(col = "Diferença")) + geom_line(filter(dataTotal, Sex == 1), mapping = aes(x = Year, y = Total, col = "Homens"),size = 1) + geom_line(filter(dataTotal, Sex == 2), mapping = aes(x = Year, y = Total, col = "Mulheres"),size = 1) + labs(title = "Difença total dos suicídios", x = "Anos", y = "Suicídios", col = "Legenda") + geom_text(aes(label = Diff))
+```
+
+  Neste gráfico temos a diferença "homens-mulheres" no mesmo gráfico, representada por uma linha entre os dois.
+
+  Assim sendo, é possível determinar uma diferença significativa entre a taxa de suicídio de homens e mulheres.
+
+## 2 - Existe uma preferência por métodos de suicídio por gênero?
+
+```{r}
+mcomumhomens <- as.character((filter(dataTipoTotal, Sex == 1) %>% filter(Total == max(Total)))[1,3])
+mcomummulheres <- as.character((filter(dataTipoTotal, Sex == 2) %>% filter(Total == max(Total)))[1,3])
+
+filter(dataTipoTotal, Sex == 1) %>% ggplot(aes(x = Year,y = Total, col = Cause)) + geom_line() + labs(title = "Métodos mais comuns para homens", col = "Métodos")
+
+filter(dataTipoTotal, Sex == 2) %>% ggplot(aes(x = Year,y = Total, col = Cause)) + geom_line() + labs(title = "Métodos mais comuns para mulheres", col = "Métodos")
+
+```
+
+  O método mais comum em questão é o mesmo para os dois gêneros, o enforcamento/estrangulamento. Essa forma de suicídio é relativamente comum pela sua facilidade de conseguir materiais e simples execução.
+
+
+```{r}
+filter(dataTipoTotal, Sex == 1) %>% filter(Cause != mcomumhomens) %>% ggplot(aes(x = Year,y = Total, col = Cause)) + geom_line(size = 1) + labs(title = "Métodos mais comuns para homens, excluindo enforcamento", col = "Métodos") + geom_text(data = subset(filter(dataTipoTotal, Sex == 1) %>% filter(Cause != mcomumhomens), Year == "2016"), aes(label = Cause, hjust=0)) + theme(legend.position = "none")  # Por arma de fogo não especificada, seguido de envenamento
+```
+
+
+```{r}
+filter(dataTipoTotal, Sex == 2) %>% filter(Cause != mcomummulheres) %>% ggplot(aes(x = Year,y = Total, col = Cause)) + geom_line(size = 1) + labs(title = "Métodos mais comuns para mulheres, excluindo enforcamento", col = "Métodos") + geom_text(data = subset(filter(dataTipoTotal, Sex == 2) %>% filter(Cause != mcomumhomens), Year == "2016"), aes(label = Cause, hjust=0)) + theme(legend.position = "none") # Salto de locais altos, colado com envenenamento
+```
+
+  Agora temos diferenças significativas nas formas de suicídio separando por gênero, enquanto os homens optam por "X740", representando armas de fogo, e bem abaixo temos envenenamento e quedas. As mulheres preferem se suicidar pulando de locais altos e com envenenamento.
+  Essa diferença é um fato importante quando estamos tratando de número de suicídios por gênero, haja vista que armas de fogo apresentam uma chance de sucesso relativamente mais alta do que overdose por remédios, drogas, etc. Contribuindo para os maiores números de suicídios com sucesso pelo sexo masculino.
+  Por outro lado, a quantidade bruta anual não é significativa para indicar que esse seja o único fator resultante nessa discrepância.
+  
+  Uma observação importante foi a redução drástica no número de suicídios não só com armas de fogo, mas geral do ano de 2003 em diante. O ano da campanha do desarmamento teve um impacto positivo na prevenção ao suicídio no país.
+  
+  
+## 3 - Qual a faixa etária mais suicida?
+
+```{r}
+melt(dataIdade,"Year") %>% ggplot(aes(x = Year, y = value, col = variable)) + geom_line(size = 1) + geom_text(data = subset(melt(dataIdade,"Year"), Year == "2016"),aes(label = variable, hjust=1))+ labs(title = "Faixas etárias em riso", x = "Tempo", y = "Suicidios") + theme(legend.position = "none")
+```
+
+  Diferentemente do senso comum, que dita adolescentes e idosos como faixas etárias de risco. o gráfico moestra como pessoas entre 25-59 anos representam significativamente taxas de suicídio elevadas. Essa parcela da sociedade tem mais responsabilidade e normalmente possuem uma rede de apoio reduzida. Fatores estes que contribuem para as taxas de suicídio.
+  
+## Conclusão da Análise Exploratória
+
+  Com esse relatório é possível deduzir que homens de meia idade são as categorias com mais risco de suicídio. Seus métodos são mais letais do que os das mulheres e o número de pessoas que tiram as suas próprias vidas está aumentando cada vez mais, mesmo após a redução drástica da metade da década de 00.
+  
+# Modelagem
+
+```{r}
+library("astsa")
+library("normwhn.test")
+library("forecast")
+library("tidyverse")
+library("ggplot2")
+library("reshape2")
+
+library(readxl)
+library(tidyverse)
+library(corrgram)
+library(DataExplorer)
+library(broom)
+library(plotly)
+library(skimr)
+library(car)
+library(gvlma)
+library(AutoModel)
+library(leaps)
+```
+
+```{r}
+datafinal <- get(load(file="BDDSUICS.RData"))
+
+dataTotal <- datafinal$Total %>% aggregate(by = list(datafinal$Year), FUN = sum) %>% setNames(c("Year","Suicides"))
+
+suicides <- ts(dataTotal$Suicides,1996,2016,1)
+
+#acf2(suicides)
+
+#plot(suicides)
+#plot(diff(suicides))
+#plot(diff(log(suicides)))
+
+month<-seq(as.Date("1996-12-31"), as.Date("2016-12-31"), by="quarter")
+
+estshare<-approx(dataTotal$Suicides, n=length(month))
+
+suicides1<-data.frame(month<-month, Suicides<-estshare$y)
+
+names(suicides1)[1] <- "Date"
+names(suicides1)[2] <- "Suicides"
+
+finalsuicides <- ts(suicides1$Suicides,1996,2016,4)
+
+#plot.ts(diff(finalsuicides,differences = 2))
+
+diffsuics <- diff(finalsuicides, differences = 3)
+
+```
+
+Os dados dos suicídios nos últimos anos podem ser vistos da seguinte forma
+
+```{r}
+ts.plot(finalsuicides)
+```
+
+Analisando o gráfico, fica evidente a necessidade de um tratamento desses dados para que seja realizada uma previsão temporal. Dessa forma, vários modelos foram gerados e testados em níveis de diferenciação diferentes.
+
+O BDD trouxe os dados divididos anualmente, dessa forma foi utilizado a interpolação para gerar novos dados trimestrais. Sendo mais fácil de visualizar as previsões realizadas.
+
+```{r}
+sarima(suicides,0,0,1) #AIC = 16.62 e #BIC = 16.77
+```
+
+```{r}
+sarima(finalsuicides,1,1,0) #AIC = 13.07 e #BIC = 13.16
+```
+
+
+Os dois primeiros apresentaram altas taxas de AIC e BIC, apesar dos gráficos de diferenciação estarem intuitivamente mais corretos.
+Por outro lado, caso não houvesse nenhuma diferenciação, e a utilização de um modelo SAR(2). As taxas de AIC e BIC se mostraram comparativamente baixas.
+
+```{r}
+sarima(finalsuicides,2,0,0,2,0,0,4) #AIC = 12.79 e #BIC = 12.97
+```
+
+Ainda assim, os gráficos estão longe do White Noise ideal. Contudo, mesmo havendo uma certa variação na média, não existe uma linha de tendência nos residuals. Já que ele apresenta pouca variação na diferenciação.
+
+Logo, as previsões foram realizadas para um horizonte de 12 trimestres, ou 4 anos.
+```{r}
+sarima.for(finalsuicides,n.ahead = 12, 2,0,0,2,0,0,4)
+```
+
+A linha de tendência dos últimos dados está claramente positiva, mas os efeitos passados foram um fator importante para prever a queda dos suicídios. Apesar de ainda estarmos com uma grande margem de erro.
+
+## Isso nos leva a questão principal, os grupos de risco estão em perigo? Entenda-se grupos de risco pela faixa da meia-idade. Como visto na análise exploratória
+
+```{r}
+dataTotalMI <- data.frame(datafinal)
+
+dataTotalMI$Deaths7 <- dataTotalMI$Deaths8 <- dataTotalMI$Deaths9 <- dataTotalMI$Deaths10 <- dataTotalMI$Deaths26 <- dataTotalMI$Deaths6069 <- dataTotalMI$Deaths70up <- dataTotalMI$Total <- NULL
+
+dataTotalMI$Total <- dataTotalMI$Deaths2534 + dataTotalMI$Deaths3544 + dataTotalMI$Deaths4559
+
+dataTotalMI$Deaths2534 <- dataTotalMI$Deaths3544 <- dataTotalMI$Deaths4559 <- NULL
+
+dataTotalMI <- dataTotalMI$Total %>% aggregate(by = list(datafinal$Year), FUN = sum) %>% setNames(c("Year","Suicides"))
+
+month<-seq(as.Date("1996-12-31"), as.Date("2016-12-31"), by="quarter")
+
+estshare<-approx(dataTotalMI$Suicides, n=length(month))
+
+suicidesMI<-data.frame(month<-month, Suicides<-estshare$y)
+
+names(suicidesMI)[1] <- "Date"
+names(suicidesMI)[2] <- "Suicides"
+
+suicidesMI <- ts(suicidesMI$Suicides,1996,2016,4)
+```
+
+As mesmas análises realizadas para os dados gerais se repetem para a população de meia idade, que segue o mesmo padrão geral. De crescimento nos últimos anos.
+
+```{r}
+ts.plot(suicidesMI)
+```
+
+```{r}
+
+sarima(suicidesMI,2,0,0,2,0,0,4) #AIC = 12.79 e #BIC = 12.97
+```
+
+seguindo o mesmo padrão, uma previsão com o mesmo horizonte foi realizada.
+
+```{r}
+sarima.for(suicidesMI,n.ahead = 12, 2,0,0,2,0,0,4)
+```
+
+## Conclusão da modelagem
+
+Assim sendo, pode-se concluir que nos últimos anos as taxas de suicídos estão em alta e que, apesar dos modelos atuais preverem uma queda decorrente dos resultados históricos. A margem de confiança ainda está ampla o suficiente para mantermos a atenção nos indicadores de suicídio no Brasil.
+
+# Conclusão das Análises
+
+  Pode-se interpretar os resultados *estatisticamente* positivos, já que, mesmo com um aumento recente nos suicídios a tendência prevista foi a de uma diminuição. Contudo, pode ser argumentado que as quedas drásticas do número de suicídios em 2003 afetou a qualidade dessa previsão.
+  
+  Outro ponto relevante foi o impacto que a *política do desarmamento* teve nos suicídios, com uma redução correlacionada ao seu ano de implementação, com o número de suicídios por armas de fogo caindo de forma drásticas. Levando a maior redução nos suicídios masculinos, que utilizam essas ferramentas como uma das principais escolhas no suicídio.
+  
+  Também foi observado que pessoas entre 25-59 anos cometem significativamente mais suicídios que o resto da população, enquanto recebem menos apoio e políticas direcionadas. Fatores como isolamento social e alienação podem contribuir negativamente para a saúde mental dessas pessoas. Dessa forma, políticas públicas direcionadas a essa faixa etária seriam muito bem vindas.
+  
+  Analisando as diferenças de gênero, também podemos deduzir que homens tem uma tendência a recorrer a tentativas de suicídios mais "eficazes" como armas de fogo e queda, enquanto mulheres tem uma preferência por envenenamento. Esta diferença também foi considerada como um dos fatores de diferença na taxa entre os gêneros.
+  
+  Por outro lado, ainda há uma discrepância significativa entre o número de homens e de mulheres que cometem suicídio, com homens tendo quase o dobro de pessoas cometendo o ato. Esse indicador não deve ser ignorado, já que traz insights relevantes na dinâmica social contemporânea.
+  
+  Dessa forma, as análises conseguiram trazer informações inicialmente contra intuitivas, que desafiaram a hipótese inicial de que jovens e idosos cometem mais suicídios, e que os gêneros não apresentam diferenças relevantes entre si.
