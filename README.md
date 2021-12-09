@@ -4,7 +4,7 @@
 
 ## Disclaimer
 
-Esse projeto foi feito no longínquo ano de 2019 quando eu ainda estava aprendendo ciência de dados, sendo o meu primeiro projeto. Não estou mantendo-o atualizado por questões de falta de tempo e para deixar o meu avanço cada vez mais claro. Talvez eu revisite essa análise em Python com outro algoritmo de séries temporais, mas esse sempre ficará de pé como meu primeiro projeto.
+Esse projeto foi feito no longínquo ano de 2019 quando eu ainda estava aprendendo ciência de dados, sendo o meu primeiro projeto. Não estou mantendo-o atualizado por questões de falta de tempo e para deixar o meu avanço cada vez mais claro. Talvez eu revisite essa análise em Python com outro algoritmo de séries temporais, mas esse sempre ficará de pé como meu primeiro projeto. obs: Uso R Markdown para fazer os relatórios, então o github bugou e achou que era 100% HTML mesmo sendo R
 
 
 ## Objetivo
