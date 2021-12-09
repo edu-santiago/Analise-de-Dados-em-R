@@ -2,6 +2,11 @@
 # Análise dos Suicídios no Brasil
 
 
+## Disclaimer
+
+Esse projeto foi feito no longínquo ano de 2019 quando eu ainda estava aprendendo ciência de dados, sendo o meu primeiro projeto. Não estou mantendo-o atualizado por questões de falta de tempo e para deixar o meu avanço cada vez mais claro. Talvez eu revisite essa análise em Python com outro algoritmo de séries temporais, mas esse sempre ficará de pé como meu primeiro projeto.
+
+
 ## Objetivo
 
 Essa análise tem como principal objetivo encontrar os fatores de risco para suicídio no Brasil e prever a evolução desses dados para os próximos anos.
